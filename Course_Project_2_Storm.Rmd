@@ -1,0 +1,228 @@
+---
+title: "Research about the most harmful type of severe weather event in U.S. in 1950-2011 using NOAA Storm Database"
+output: html_document
+date: "2023-10-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+
+## Load necessary packages
+Before analysis, We'll load some packages.<br/>
+Necessary packages are 'dplyr', 'stringr', 'ggplot2'.<br/>
+We'll load some additional packages that are dependent.
+
+```{r, message=FALSE}
+library(base)
+library(stats)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+```
+
+
+## Data Processing
+In this part, We will read raw data('repdata_data_StormData.csv.bz2') and process it to make our future analysis easier.
+<br/><br/>
+First, Let's read raw data.
+
+```{r, cache=TRUE}
+Storm <- read.csv('repdata_data_StormData.csv.bz2')
+```
+
+
+And let's take a quick look at the data!
+```{r}
+dim(Storm)
+names(Storm)
+head(Storm)
+```
+
+There are `r dim(Storm)[1]` rows and `r dim(Storm)[2]` columns.
+And this data contain information about severe weather events(like Hurricane, Flood..) including the event's location, damage it caused.<br/>
+
+So, There are kinds of columns like 'event type'(EVTYPE), 'state where the events occured'(STATE), 'when they occured'(BGN_DATE, BGN_TIME, END_DATE, END_TIME).<br/>
+
+Among this columns, We extract only 7 columns we need for our analysis.
+<br/>
+The list of columns are "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP".
+
+```{r, cache=TRUE}
+needed_columns <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG",
+                    "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")
+selected_Storm <- Storm %>% select(all_of(needed_columns))
+```
+
+```{r}
+dim(selected_Storm)
+names(selected_Storm)
+```
+
+So, selection of columns we want is completed.
+
+Also, there are some inappropriate EVTYPE in this dataset.
+There are 2 cases about it.
+
+1. name containing blank space like "   HIGH SURF ADVISORY".
+2. name that doesn't mean any type of event like "Summary August 2-3"(containing 'summary')
+
+So, we will trim corresponding rows in first case, and in second case, remove corresponding rows.
+
+```{r, cache=TRUE}
+selected_Storm$EVTYPE <- str_trim(selected_Storm$EVTYPE)
+good <- !grepl("Summary", selected_Storm$EVTYPE)
+Storm3 <- selected_Storm[good, ]
+```
+So, in our first question(Across the United States, which types of events are most harmful with respect to population health?), we will use this processed 'Storm3' data.
+<br/><br/>
+
+
+And for our second Question(Across the United States, which types of events have the greatest economic consequences?), we need some additional processing procedure.
+<br/><br/>
+In 'Storm3' data, There are 2 variables("PROPDMGEXP", "CROPDMGEXP"). This 2 variables mean the Unit of the number of property damage("PROPDMG"), crop damage("CROPDMG").(in dollar amount).
+<br/>
+As the example value of this 2 variables, "K"(Kilo) means 10^3, "M"(Million) means 10^6, "b"(Billion) means 10^9. And the "" Unit is used when the "PROPDMG", "CROPDMG" value is zero.
+<br/><br/>
+Other than these 4 values of Unit, there are also values like "m", "+", "5", "?", "h", "7", "H", "-". Because we could not able to figure out meaning of these variables, We will remove rows that have value like them.
+<br/>
+And also remove the rows that both "PROPDMG", "CROPDMG" value are zero.
+
+```{r, cache=TRUE}
+filter_Storm <- Storm3 %>% 
+  filter(PROPDMG != 0 | PROPDMG != 0) %>%
+  filter(PROPDMGEXP %in% c("K", "M", "B", "")) %>%
+  filter(CROPDMGEXP %in% c("K", "M", "B", ""))
+```
+```{r}
+unique(filter_Storm$PROPDMGEXP)
+unique(filter_Storm$CROPDMGEXP)
+```
+
+So, Only the rows that has one of the Unit value among ("", "K", "M", "B").
+<br/><br/>
+In our second question, we will use this 'filter_Storm' data.
+
+## Question 1. Across the United States, which types of events are most harmful with respect to population health?
+Specifically, which types of events have caused the highest number of fatalities and injuries?
+<br/>
+For answering it, we will group our processed data(Storm3) by 'EVTYPE' variable and calculate sum of the fatality and injury for each group.
+```{r, cache=TRUE}
+group_Storm <- Storm3 %>% group_by(EVTYPE) %>% 
+  summarize(fatality = sum(FATALITIES), injury = sum(INJURIES))
+```
+and arrange the result in order of the fatalities and injuries.
+```{r}
+ordering1 <-
+  group_Storm[order(group_Storm$fatality, decreasing = TRUE),]
+
+ordering2 <-
+  group_Storm[order(group_Storm$injury, decreasing = TRUE),]
+```
+
+Let's see the result.
+
+```{r}
+##Plot it
+par(mfrow = c(1,2), cex.axis=0.5, cex.main=.75)
+barplot(ordering1$fatality[1:3], names.arg = ordering1$EVTYPE[1:3],
+        xlab = "Type", ylab = "Fatality")
+title(main = "Top3 Sum of fatalities by types of event 1950-2011")
+barplot(ordering2$injury[1:3], names.arg = ordering2$EVTYPE[1:3],
+        xlab = "Type", ylab = "Injury")
+
+title(main = "Top3 Sum of Injuries by types of event 1950-2011")
+```
+```{r, echo=FALSE}
+options(scipen = 999)
+```
+
+
+
+Among various types of events, Tornado has caused the most fatalities and injuries.
+<br/>
+It caused `r ordering1[1,2]` fatalities and `r ordering2[1,3]` injuries in 1950-2011.
+
+
+## Question 2. Across the United States, which types of events have the greatest economic consequences?
+In our raw dataset(Storm), we can identify the economic consequences through 2 variables.("PROPDMG"(property damage), "CROPDMG"(crop damage)). And we calculate the total economic damage caused by specific event by adding these 2 variables. For this, we will make 2 new colomns that contain the damage amount in a unified unit.(each name is "property" and "crop"). And after it, we will make an additional column that means total amount of damage in dollar by adding 2 columns("property", "crop").
+<br/><br/>
+Let's do it!
+
+```{r, cache=TRUE}
+for(i in 1:nrow(filter_Storm)){
+  if(filter_Storm$PROPDMGEXP[i] == ""){
+    filter_Storm$property[i] <- 0
+  }else if(filter_Storm$PROPDMGEXP[i] == "K"){
+    filter_Storm$property[i] <- filter_Storm$PROPDMG[i] * 1000
+  }else if(filter_Storm$PROPDMGEXP[i] == "M"){
+    filter_Storm$property[i] <- filter_Storm$PROPDMG[i] * 1000000
+  }else if(filter_Storm$PROPDMGEXP[i] == "B"){
+    filter_Storm$property[i] <- filter_Storm$PROPDMG[i] * 1000000000
+  }
+}
+```
+First make 'property' column by combining 'PROPDMG' column with 'PROPDMGEXP'.
+And also do the same thing with 'CROPDMG', 'CROPDMGEXP' to make 'crop' column.
+
+```{r, cache=TRUE}
+for(i in 1:nrow(filter_Storm)){
+  if(filter_Storm$CROPDMGEXP[i] == ""){
+    filter_Storm$crop[i] <- 0
+  }else if(filter_Storm$CROPDMGEXP[i] == "K"){
+    filter_Storm$crop[i] <- filter_Storm$CROPDMG[i] * 1000
+  }else if(filter_Storm$PROPDMGEXP[i] == "M"){
+    filter_Storm$crop[i] <- filter_Storm$CROPDMG[i] * 1000000
+  }else if(filter_Storm$PROPDMGEXP[i] == "B"){
+    filter_Storm$crop[i] <- filter_Storm$CROPDMG[i] * 1000000000
+  }
+}
+```
+```{r}
+head(unique(filter_Storm$property))
+head(unique(filter_Storm$crop))
+```
+So, 2 new columns has made.
+<br/><br/>
+And let's make 'total' column by adding 'property' and 'crop' columns.
+
+```{r}
+filter_Storm$total <- filter_Storm$property + filter_Storm$crop
+```
+```{r}
+head(unique(filter_Storm$total))
+```
+Okay, the new column we could use to calculate the amount of damage has made.
+<br/>
+So, which types of events have the greatest economic consequences?
+<br/>
+For answering it, we will group 'filter_Storm' data by 'EVTYPE' variable and calculate sum of 'total' column for each group.
+
+```{r, cache=TRUE}
+final_Storm <- filter_Storm %>% group_by(EVTYPE) %>%
+  summarize(economic = sum(total))
+```
+And arrange it in order of 'economic'.
+
+```{r}
+ordering3 <- final_Storm[order(final_Storm$economic, decreasing = TRUE),]
+```
+Let's see the result by plotting it!
+
+```{r}
+g <- ggplot(ordering3[1:3,], aes(reorder(EVTYPE, economic, decreasing=TRUE), economic/10^9))
+g + geom_bar(stat='identity') + labs(x='Type', y='Economic Damage(Billon dollars)',
+                      title = 'Top3 Type of Event that caused Economic
+                      Damage 1950-2011') + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+So, the type that caused the most economic damage across United States in 1950-2011 is,
+'Hurricane'. It cost almost `r ordering3[1,2]/10^9` Billion dollars!
+
+
+## Results
+

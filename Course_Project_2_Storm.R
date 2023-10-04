@@ -13,6 +13,7 @@ Storm <- read.csv('repdata_data_StormData.csv.bz2')
 ##Explore Date briefly
 names(Storm)
 head(Storm)
+dim(Storm)
 
 ##Preprocessing Data
 ##Select only needed Columns
