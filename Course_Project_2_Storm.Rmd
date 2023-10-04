@@ -9,7 +9,13 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Synopsis
-
+All over the world, severe weather events have been occuring every year, and causing considerable damage to people's health and economy. We want to figure out 'What type of weather event has caused the most damage to people's health/economy in U.S. from 1950 to 2011.
+As an extension of this exploration, it is expected to be able to prevent such damage by preparing precautions.
+<br/>
+We use the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database for our analysis. There are '913' weather events types such as 'Tornado', 'Hail', 'Lightning'. The damage to people's health is divided into 'fatality' and 'injury', and the damage to economy is divided into 'property damage' and 'crop damage' and later we make new variable 'total' that add 'property damage' and 'crop damage'. 
+<br/>
+As the result of our analysis, 'Tornado' is the most harmful type in both 'fatality' and 'injury' over the 61 years we've tallied, and in terms of economy, the weather type that has cost the most economic damage is 'Hurricane'.
+By investigating the mechanism that these two types of event occur damage to health and economy, it is expected to be able to prepare precaution that will reduce damage from these events.
 
 ## Load necessary packages
 Before analysis, We'll load some packages.<br/>
@@ -47,9 +53,9 @@ And this data contain information about severe weather events(like Hurricane, Fl
 
 So, There are kinds of columns like 'event type'(EVTYPE), 'state where the events occured'(STATE), 'when they occured'(BGN_DATE, BGN_TIME, END_DATE, END_TIME).<br/>
 
-Among this columns, We extract only 7 columns we need for our analysis.
+Among this columns, We will extract only 7 columns we need for our analysis.
 <br/>
-The list of columns are "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP".
+These columns are "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP".
 
 ```{r, cache=TRUE}
 needed_columns <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG",
@@ -85,11 +91,11 @@ And for our second Question(Across the United States, which types of events have
 <br/><br/>
 In 'Storm3' data, There are 2 variables("PROPDMGEXP", "CROPDMGEXP"). This 2 variables mean the Unit of the number of property damage("PROPDMG"), crop damage("CROPDMG").(in dollar amount).
 <br/>
-As the example value of this 2 variables, "K"(Kilo) means 10^3, "M"(Million) means 10^6, "b"(Billion) means 10^9. And the "" Unit is used when the "PROPDMG", "CROPDMG" value is zero.
+As the example value of this 2 variables("PROPDMGEXP", "CROPDMGEXP"), "K"(Kilo) means 10^3, "M"(Million) means 10^6, "b"(Billion) means 10^9. And the "" Unit is used when the "PROPDMG", "CROPDMG" value is zero.
 <br/><br/>
-Other than these 4 values of Unit, there are also values like "m", "+", "5", "?", "h", "7", "H", "-". Because we could not able to figure out meaning of these variables, We will remove rows that have value like them.
+Other than these 4 representative values of Unit, there are also values like "m", "+", "5", "?", "h", "7", "H", "-". Because we could not able to figure out meaning of these variables, We will remove rows that have value like them.
 <br/>
-And also remove the rows that both "PROPDMG", "CROPDMG" value are zero.
+And we will also remove the rows that both "PROPDMG", "CROPDMG" value are zero. Let's do it.
 
 ```{r, cache=TRUE}
 filter_Storm <- Storm3 %>% 
@@ -102,7 +108,7 @@ unique(filter_Storm$PROPDMGEXP)
 unique(filter_Storm$CROPDMGEXP)
 ```
 
-So, Only the rows that has one of the Unit value among ("", "K", "M", "B").
+So, Only the rows that has one of the Unit value among ("", "K", "M", "B") are left.
 <br/><br/>
 In our second question, we will use this 'filter_Storm' data.
 
@@ -123,32 +129,10 @@ ordering2 <-
   group_Storm[order(group_Storm$injury, decreasing = TRUE),]
 ```
 
-Let's see the result.
-
-```{r}
-##Plot it
-par(mfrow = c(1,2), cex.axis=0.5, cex.main=.75)
-barplot(ordering1$fatality[1:3], names.arg = ordering1$EVTYPE[1:3],
-        xlab = "Type", ylab = "Fatality")
-title(main = "Top3 Sum of fatalities by types of event 1950-2011")
-barplot(ordering2$injury[1:3], names.arg = ordering2$EVTYPE[1:3],
-        xlab = "Type", ylab = "Injury")
-
-title(main = "Top3 Sum of Injuries by types of event 1950-2011")
-```
-```{r, echo=FALSE}
-options(scipen = 999)
-```
-
-
-
-Among various types of events, Tornado has caused the most fatalities and injuries.
-<br/>
-It caused `r ordering1[1,2]` fatalities and `r ordering2[1,3]` injuries in 1950-2011.
-
+The result about this Question 1 is suggested in 'Result' part.
 
 ## Question 2. Across the United States, which types of events have the greatest economic consequences?
-In our raw dataset(Storm), we can identify the economic consequences through 2 variables.("PROPDMG"(property damage), "CROPDMG"(crop damage)). And we calculate the total economic damage caused by specific event by adding these 2 variables. For this, we will make 2 new colomns that contain the damage amount in a unified unit.(each name is "property" and "crop"). And after it, we will make an additional column that means total amount of damage in dollar by adding 2 columns("property", "crop").
+In our raw dataset(Storm), we can identify the economic consequences through 2 variables.("PROPDMG"(property damage), "CROPDMG"(crop damage)). And we will calculate the total economic damage caused by specific event by adding these 2 variables. For this, we will make 2 new colomns that contain the damage amount in a unified unit.(each name is "property" and "crop"). And after it, we will make an additional column that means total amount of damage in dollar by adding 2 columns("property", "crop").
 <br/><br/>
 Let's do it!
 
@@ -166,7 +150,7 @@ for(i in 1:nrow(filter_Storm)){
 }
 ```
 First make 'property' column by combining 'PROPDMG' column with 'PROPDMGEXP'.
-And also do the same thing with 'CROPDMG', 'CROPDMGEXP' to make 'crop' column.
+And also do the same thing with 'CROPDMG' and 'CROPDMGEXP' to make 'crop' column.
 
 ```{r, cache=TRUE}
 for(i in 1:nrow(filter_Storm)){
@@ -180,6 +164,9 @@ for(i in 1:nrow(filter_Storm)){
     filter_Storm$crop[i] <- filter_Storm$CROPDMG[i] * 1000000000
   }
 }
+```
+```{r}
+options(scipen = 999)
 ```
 ```{r}
 head(unique(filter_Storm$property))
@@ -210,7 +197,37 @@ And arrange it in order of 'economic'.
 ```{r}
 ordering3 <- final_Storm[order(final_Storm$economic, decreasing = TRUE),]
 ```
-Let's see the result by plotting it!
+
+The result about this Question 2 is also suggested in 'Result' part.
+
+## Results
+
+### Question 1. Across the United States, which types of events are most harmful with respect to population health?
+Let's see the result about the first question.
+
+```{r}
+##Plot it
+par(mfrow = c(1,2), cex.axis=0.5, cex.main=.75)
+barplot(ordering1$fatality[1:3], names.arg = ordering1$EVTYPE[1:3],
+        xlab = "Type", ylab = "Fatality")
+title(main = "Top3 Sum of fatalities by types of event 1950-2011")
+barplot(ordering2$injury[1:3], names.arg = ordering2$EVTYPE[1:3],
+        xlab = "Type", ylab = "Injury")
+
+title(main = "Top3 Sum of Injuries by types of event 1950-2011")
+```
+
+
+
+
+Among various types of events, Tornado has caused the most fatalities and injuries.
+<br/>
+It caused `r ordering1[1,2]` fatalities and `r ordering2[1,3]` injuries in 1950-2011.
+
+
+### Question 2. Across the United States, which types of events have the greatest economic consequences?
+
+Let's see the result about question 2
 
 ```{r}
 g <- ggplot(ordering3[1:3,], aes(reorder(EVTYPE, economic, decreasing=TRUE), economic/10^9))
@@ -222,7 +239,4 @@ g + geom_bar(stat='identity') + labs(x='Type', y='Economic Damage(Billon dollars
 
 So, the type that caused the most economic damage across United States in 1950-2011 is,
 'Hurricane'. It cost almost `r ordering3[1,2]/10^9` Billion dollars!
-
-
-## Results
 
